@@ -1,14 +1,21 @@
-
+; bootloader
 org   0x7c00        ; We are loaded by BIOS at 0x7C00
 
 bits  16          ; We are still in 16 bit Real Mode
 
 Start:
 
-  xor bx, bx    ; A faster method of clearing BX to 0
-  mov ah, 0x0e
-  mov al, 'B'
-  int 0x10
+
+  mov cl, 255
+  L:
+    xor bx, bx
+    mov ah, 0x0e
+    mov al, cl
+    int 0x10
+
+    dec cl
+    jnz L
+
 
   cli         ; Clear all Interrupts
   hlt         ; halt the system
