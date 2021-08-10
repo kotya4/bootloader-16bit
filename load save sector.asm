@@ -24,166 +24,46 @@ cld             ; Set the direction flag to be positive direction
 ; load second sector
 ; source: http://www.ctyme.com/intr/rb-0607.htm
 
-WHERETOLOAD equ 7c00h + 200h
-
-mov al, 01h          ; number of sectors to read
-mov ch, 00h          ; tracks? cylinder number?
-mov cl, [lastsector] ; sector number (from 1-63)
-mov dh, 00h          ; head number?
-; mov dl, 00h        ; drive number ( setted by bios at boot )
+mov al, 01h ; number of sectors to read
+mov ch, 00h ; tracks? cylinder number?
+mov cl, 02h ; sector number (from 1-63)
+mov dh, 00h ; head number?
+; mov dl, 00h ; drive number ( setted by bios at boot )
 mov bx, 0000h
 mov es, bx
-mov bx, WHERETOLOAD  ; es:bx where to load
-mov di, 0003h        ; retry 3 times on failure
+mov bx, SECTOR2 ; es:bx where to load
+mov di, 0003h ; retry 3 times on failure
 call begreadsector
 jc errreadsector
 
 ; successfully read
 
-mov ah, 0eh ; teletype output
-mov bx, 0 ; page at 0
-mov cx, 200h
-mov si, WHERETOLOAD
-.printsector :
-    mov al, [si]
-    inc si
-    int 10h ; teletype output
-    loop .printsector
+mov si, strok
+call begteletype
 
+mov si, strtest
+call begteletype
 
+mov si, strtest
+mov [si+2], byte '@'
 
-
-
-
-readkey :
-    mov ah, 00h ; read key
-    int 16h
-
-    cmp al, 3 ; ctrl+c ?
-    jz nonono
-
-    cmp ah, 48h
-    jz arrowup
-
-    cmp ah, 50h
-    jz arrowdown
-
-    cmp ah, 4bh
-    jz arrowleft
-
-    cmp ah, 4dh
-    jz arrowright
-
-    ; TODO: check if text 512 bytes long
-
-    mov ah, 0eh  ; teletype output
-    int 10h
-
-    mov [si], al
-    inc si
-
-    jmp readkey
-
-
-
-arrowup :
-    mov ah, 03h ; dh = row, dl = col
-    int 10h
-    dec dh
-    cmp dh, 0
-    jge .nooverflow
-    xor dh, dh
-    .nooverflow :
-    mov ah, 02h
-    int 10h
-    jmp readkey
-
-arrowleft :
-    mov ah, 03h ; dh = row, dl = col
-    int 10h
-    dec dl
-    cmp dl, 0
-    jge .nooverflow
-    xor dl, dl
-    .nooverflow :
-    mov ah, 02h
-    int 10h
-    jmp readkey
-
-arrowdown :
-    mov ah, 03h ; dh = row, dl = col
-    int 10h
-    inc dh
-    cmp dh, 24
-    jng .nooverflow
-    mov dh, 24
-    .nooverflow :
-    mov ah, 02h
-    int 10h
-    jmp readkey
-
-arrowright :
-    mov ah, 03h ; dh = row, dl = col
-    int 10h
-    inc dl
-    cmp dl, 79
-    jng .nooverflow
-    mov dl, 79
-    .nooverflow :
-    mov ah, 02h
-    int 10h
-    jmp readkey
-
-
-nonono :
-    mov al, '>'
-    mov ah, 02h
-    int 10h
-
-
-
-
-
-; mov si, strnewline
-; call begteletype
-; mov si, strnewline
-; call begteletype
-
-jmp halt
-
-
-
-
-
-
-
+mov al, 01h ; AL = number of sectors to write (must be nonzero)
+mov ch, 00h ; CH = low eight bits of cylinder number
+mov cl, 02h ; CL = sector number 1-63 (bits 0-5), high two bits of cylinder (bits 6-7, hard disk only)
+mov dh, 00h ; DH = head number
+; mov dl, 00h ; DL = drive number (bit 7 set for hard disk)
+; ES:BX -> data buffer
+mov bx, 0000h
+mov es, bx
+mov bx, SECTOR2 ; es:bx what to load
+mov di, 0003h ; retry 3 times
+call begwritesector
+jc errwritesector
 
 mov si, strok
 call begteletype
 
-; mov si, strtest
-; call begteletype
-
-; mov si, strtest
-; mov [si+2], byte '@'
-
-; mov al, 01h ; AL = number of sectors to write (must be nonzero)
-; mov ch, 00h ; CH = low eight bits of cylinder number
-; mov cl, 02h ; CL = sector number 1-63 (bits 0-5), high two bits of cylinder (bits 6-7, hard disk only)
-; mov dh, 00h ; DH = head number
-; ; mov dl, 00h ; DL = drive number (bit 7 set for hard disk)
-; ; ES:BX -> data buffer
-; mov bx, 0000h
-; mov es, bx
-; mov bx, SECTOR2 ; es:bx what to load
-; mov di, 0003h ; retry 3 times
-; call begwritesector
-; jc errwritesector
-
-; mov si, strok
-; call begteletype
-
-; jmp halt
+jmp halt
 
 ; failure on read
 
@@ -276,8 +156,6 @@ straxtohex db 3, 3, 3, 3, 0
 strcannotreadsector db 'Cannot read sector', 10, 13, 0
 strcannotwritesector db 'Cannot write sector', 10, 13, 0
 strok db 'ok', 10, 13, 0
-lastsector db 2
-strnewline db 10, 13, 0
 
 
 EMPTYSPACE equ 200h - 2 - ( $ - SECTOR1 )
@@ -287,5 +165,9 @@ dw 0xAA55                             ; boot signiture
 
 ;; ============ SECTOR 2 ============
 
-db 'hello, world!'
 
+SECTOR2 :
+
+strtest db 'ts1', 10, 13, 0
+
+times 200h - ( $ - SECTOR2 ) db 0
